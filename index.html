@@ -1,8 +1,200 @@
 <!DOCTYPE html>
 <html>
-<body>
+<head>
+<title>Draw features example</title>
+<script src="https://code.jquery.com/jquery-1.11.2.min.js"></script>
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+<link rel="stylesheet" href="http://openlayers.org/en/v3.8.2/css/ol.css" type="text/css">
+<script src="http://openlayers.org/en/v3.8.2/build/ol.js"></script>
+<script>
+var raster;
+var source;
+var vector;
+var map;
+var typeSelect;
+var draw;
+var features = new ol.Collection();
+var format = new ol.format.WKT();
+var current_shape = "point";
 
-<h1>OSM-WKT plotter</h1>
-A tool for visualizing WKT shapes on an OpenStreetMap
+var fill = new ol.style.Fill({
+   color: 'rgba(210, 122, 167,0.2)'
+ });
+ var stroke = new ol.style.Stroke({
+   color: '#B40404',
+   width: 2
+ });
+
+ var styles = [
+   new ol.style.Style({
+     image: new ol.style.Circle({
+       fill: fill,
+       stroke: stroke,
+       radius: 5
+     }),
+     fill: fill,
+     stroke: stroke
+   })
+ ];
+
+function addInteraction(shape) {
+ 
+    draw = new ol.interaction.Draw({
+      features: features,
+	  type: /** @type {ol.geom.GeometryType} */ shape
+    });
+	
+    map.addInteraction(draw);
+
+
+}
+
+
+/**
+* Let user change the geometry type.
+* @param {Event} e Change event.
+*/
+function createVector(){
+
+vector = new ol.layer.Vector({
+  source: new ol.source.Vector({features: features}),
+  style: styles
+});
+
+}
+function toEPSG4326(element, index, array){
+ element = element.getGeometry().transform('EPSG:3857','EPSG:4326');
+}
+function toEPSG3857(element, index, array){
+ element = element.getGeometry().transform('EPSG:4326','EPSG:3857');
+}
+
+
+function selectGeom(shape){
+current_shape =shape;
+
+map.removeInteraction(draw);
+addInteraction(shape);
+}
+
+function init(){
+createVector();
+
+
+raster = new ol.layer.Tile({
+    source: new ol.source.OSM()//source: new ol.source.MapQuest({layer: 'sat'})
+});
+
+features.on("add",function(e){
+features.forEach(toEPSG4326);
+document.getElementById('wkt_text').value= format.writeFeatures(features.getArray(),{rightHanded :true});
+features.forEach(toEPSG3857);
+});
+
+map = new ol.Map({
+  layers: [raster, vector],
+  target: 'map',
+  view: new ol.View({
+    center: [-11000000, 4600000],
+    zoom: 4
+  })
+});
+
+
+plotWKT();
+selectGeom('Point');
+
+}
+
+
+
+
+//***********plot wkt****************
+
+function plotWKT(){
+map.removeLayer(vector);
+features.clear();
+ wkt_string = document.getElementById("wkt_text").value;
+  var new_feature = format.readFeature(wkt_string);
+  new_feature.getGeometry().transform('EPSG:4326', 'EPSG:3857');
+  features.push(new_feature);
+
+vector = new ol.layer.Vector({
+  source: new ol.source.Vector({features: features}),
+  style: styles
+});
+
+selectGeom(current_shape);
+map.addLayer(vector);
+
+derived_feature = features.getArray()[0];
+ extent = derived_feature.getGeometry().getExtent();
+ minx = derived_feature.getGeometry().getExtent()[0];
+ miny = derived_feature.getGeometry().getExtent()[1];
+ maxx = derived_feature.getGeometry().getExtent()[2];
+ maxy = derived_feature.getGeometry().getExtent()[3];
+ centerx = (minx + maxx)/2;
+ centery = (miny + maxy)/2;
+ 
+map.setView( new ol.View({
+    center: [centerx,centery],
+	zoom:8
+  }));
+  map.getView().fit(extent, map.getSize()); 
+}
+
+
+function clearMap() {
+map.removeLayer(vector);
+features.clear();
+
+vector = new ol.layer.Vector({
+  source: new ol.source.Vector({features: features}),
+  style: styles
+});
+
+selectGeom(current_shape);
+map.addLayer(vector);
+/*map.setView( new ol.View({
+    center: [0,0],
+	zoom:1.75
+  }));
+*/
+  document.getElementById("wkt_text").value = "";
+}
+
+
+
+</script>
+</head>
+<body onload="init();">
+<div class="container-fluid">
+<div class="row-fluid">
+  <div style="height: 450px;width:800px"class="span12">
+    <div  id="map" class="map"></div>
+
+        <button onclick="selectGeom('Point')" value="Point">Point</button>
+        <button onclick="selectGeom('LineString')" value="LineString">LineString</button>
+        <button onclick="selectGeom('Polygon')" value="Polygon">Polygon</button>
+  </div>
+  <table >
+<tr>
+<td>
+  <textarea id="wkt_text" rows="5" cols="111">
+MULTIPOLYGON(((-108.72070312499997 34.99400375757577,-100.01953124999997 46.58906908309183,-90.79101562499996 34.92197103616377,-108.72070312499997 34.99400375757577),(-100.10742187499997 41.47566020027821,-102.91992187499996 37.61423141542416,-96.85546874999996 37.54457732085582,-100.10742187499997 41.47566020027821)),((-85.16601562499999 34.84987503195417,-80.771484375 28.497660832963476,-76.904296875 34.92197103616377,-85.16601562499999 34.84987503195417)))
+  </textarea>
+</td>
+</tr>
+<tr>
+<td align ="right" >
+<button type="button" onclick="clearMap();">Clear</button>
+<button type="button" onclick="plotWKT();">Plot WKT!</button>
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
 </body>
 </html>
