@@ -84,6 +84,7 @@
       });
 
       features.on("add", function (e) {
+        restoreDefaultColors();
         features.forEach(toEPSG4326);
         document.getElementById('wktStringTextArea').value = format.writeFeatures(features.getArray(), { rightHanded: true });
         features.forEach(toEPSG3857);
@@ -108,18 +109,30 @@
 
     // Plot wkt string on map
     function plotWKT() {
-      map.removeLayer(vector);
-      features.clear();
+      var new_feature;
+
       wkt_string = document.getElementById("wktStringTextArea").value;
       if (wkt_string == "") {
         document.getElementById("wktStringTextArea").style.borderColor = "red";
         document.getElementById("wktStringTextArea").style.backgroundColor = "#F7E8F3";
         return;
+      } else {
+        try {
+          new_feature = format.readFeature(wkt_string);
+        } catch (err) {
+        }
       }
-      var new_feature = format.readFeature(wkt_string);
-      new_feature.getGeometry().transform('EPSG:4326', 'EPSG:3857');
-      features.push(new_feature);
 
+      if (!new_feature) {
+        document.getElementById("wktStringTextArea").style.borderColor = "red";
+        document.getElementById("wktStringTextArea").style.backgroundColor = "#F7E8F3";
+        return;
+      } else {
+        map.removeLayer(vector);
+        features.clear();
+        new_feature.getGeometry().transform('EPSG:4326', 'EPSG:3857');
+        features.push(new_feature);
+      }
       vector = new ol.layer.Vector({
         source: new ol.source.Vector({ features: features }),
         style: styles
@@ -127,7 +140,6 @@
 
       selectGeom(current_shape);
       map.addLayer(vector);
-
       derived_feature = features.getArray()[0];
       extent = derived_feature.getGeometry().getExtent();
       minx = derived_feature.getGeometry().getExtent()[0];
@@ -136,7 +148,6 @@
       maxy = derived_feature.getGeometry().getExtent()[3];
       centerx = (minx + maxx) / 2;
       centery = (miny + maxy) / 2;
-
       map.setView(new ol.View({
         center: [centerx, centery],
         zoom: 8
@@ -147,16 +158,14 @@
     function clearMap() {
       map.removeLayer(vector);
       features.clear();
-
       vector = new ol.layer.Vector({
         source: new ol.source.Vector({ features: features }),
         style: styles
       });
-
       selectGeom(current_shape);
       map.addLayer(vector);
-
       document.getElementById("wktStringTextArea").value = "";
+      restoreDefaultColors();
     }
   </script>
 </head>
