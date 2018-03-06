@@ -1,200 +1,200 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-<title>Draw features example</title>
-<script src="https://code.jquery.com/jquery-1.11.2.min.js"></script>
-<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
-<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
-<link rel="stylesheet" href="https://openlayers.org/en/v3.8.2/css/ol.css" type="text/css">
-<script src="https://openlayers.org/en/v3.8.2/build/ol.js"></script>
-<script>
-var raster;
-var source;
-var vector;
-var map;
-var typeSelect;
-var draw;
-var features = new ol.Collection();
-var format = new ol.format.WKT();
-var current_shape = "point";
+  <title>Draw features example</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
 
-var fill = new ol.style.Fill({
-   color: 'rgba(210, 122, 167,0.2)'
- });
- var stroke = new ol.style.Stroke({
-   color: '#B40404',
-   width: 2
- });
+  <link rel="stylesheet" href="https://openlayers.org/en/v4.6.4/css/ol.css" type="text/css">
+  <!-- The line below is only needed for old environments like Internet Explorer and Android 4.x -->
+  <script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=requestAnimationFrame,Element.prototype.classList,URL"></script>
+  <script src="https://openlayers.org/en/v4.6.4/build/ol.js"></script>
+  <script>
+    var raster;
+    var source;
+    var vector;
+    var map;
+    var typeSelect;
+    var draw;
+    var features = new ol.Collection();
+    var format = new ol.format.WKT();
+    var current_shape = "point";
 
- var styles = [
-   new ol.style.Style({
-     image: new ol.style.Circle({
-       fill: fill,
-       stroke: stroke,
-       radius: 5
-     }),
-     fill: fill,
-     stroke: stroke
-   })
- ];
-
-function addInteraction(shape) {
- 
-    draw = new ol.interaction.Draw({
-      features: features,
-	  type: /** @type {ol.geom.GeometryType} */ shape
+    var fill = new ol.style.Fill({
+      color: 'rgba(210, 122, 167,0.2)'
     });
-	
-    map.addInteraction(draw);
+    var stroke = new ol.style.Stroke({
+      color: '#B40404',
+      width: 2
+    });
 
+    var styles = [
+      new ol.style.Style({
+        image: new ol.style.Circle({
+          fill: fill,
+          stroke: stroke,
+          radius: 5
+        }),
+        fill: fill,
+        stroke: stroke
+      })
+    ];
 
-}
+    function addInteraction(shape) {
+      draw = new ol.interaction.Draw({
+        features: features,
+        type: /** @type {ol.geom.GeometryType} */ shape
+      });
+      map.addInteraction(draw);
+    }
 
+    /**
+    * Let user change the geometry type.
+    * @param {Event} e Change event.
+    */
+    function createVector() {
+      vector = new ol.layer.Vector({
+        source: new ol.source.Vector({ features: features }),
+        style: styles
+      });
+    }
 
-/**
-* Let user change the geometry type.
-* @param {Event} e Change event.
-*/
-function createVector(){
+    function toEPSG4326(element, index, array) {
+      element = element.getGeometry().transform('EPSG:3857', 'EPSG:4326');
+    }
 
-vector = new ol.layer.Vector({
-  source: new ol.source.Vector({features: features}),
-  style: styles
-});
+    function toEPSG3857(element, index, array) {
+      element = element.getGeometry().transform('EPSG:4326', 'EPSG:3857');
+    }
 
-}
-function toEPSG4326(element, index, array){
- element = element.getGeometry().transform('EPSG:3857','EPSG:4326');
-}
-function toEPSG3857(element, index, array){
- element = element.getGeometry().transform('EPSG:4326','EPSG:3857');
-}
+    function selectGeom(shape) {
+      current_shape = shape;
+      map.removeInteraction(draw);
+      addInteraction(shape);
+    }
 
+    function init() {
+      // document.getElementById("missing_wkt").style.display = "block";
+      createVector();
+      raster = new ol.layer.Tile({
+        source: new ol.source.OSM()
+      });
 
-function selectGeom(shape){
-current_shape =shape;
+      features.on("add", function (e) {
+        features.forEach(toEPSG4326);
+        document.getElementById('wktStringTextArea').value = format.writeFeatures(features.getArray(), { rightHanded: true });
+        features.forEach(toEPSG3857);
+      });
 
-map.removeInteraction(draw);
-addInteraction(shape);
-}
+      map = new ol.Map({
+        layers: [raster, vector],
+        target: 'map',
+        view: new ol.View({
+          center: [-11000000, 4600000],
+          zoom: 4
+        })
+      });
+      plotWKT();
+      selectGeom('Point');
+    }
 
-function init(){
-createVector();
+    function restoreDefaultColors() {
+      document.getElementById("wktStringTextArea").style.borderColor = "";
+      document.getElementById("wktStringTextArea").style.backgroundColor = "";
+    };
 
+    // Plot wkt string on map
+    function plotWKT() {
+      map.removeLayer(vector);
+      features.clear();
+      wkt_string = document.getElementById("wktStringTextArea").value;
+      if (wkt_string == "") {
+        document.getElementById("wktStringTextArea").style.borderColor = "red";
+        document.getElementById("wktStringTextArea").style.backgroundColor = "#F7E8F3";
+        return;
+      }
+      var new_feature = format.readFeature(wkt_string);
+      new_feature.getGeometry().transform('EPSG:4326', 'EPSG:3857');
+      features.push(new_feature);
 
-raster = new ol.layer.Tile({
-    source: new ol.source.OSM()//source: new ol.source.MapQuest({layer: 'sat'})
-});
+      vector = new ol.layer.Vector({
+        source: new ol.source.Vector({ features: features }),
+        style: styles
+      });
 
-features.on("add",function(e){
-features.forEach(toEPSG4326);
-document.getElementById('wkt_text').value= format.writeFeatures(features.getArray(),{rightHanded :true});
-features.forEach(toEPSG3857);
-});
+      selectGeom(current_shape);
+      map.addLayer(vector);
 
-map = new ol.Map({
-  layers: [raster, vector],
-  target: 'map',
-  view: new ol.View({
-    center: [-11000000, 4600000],
-    zoom: 4
-  })
-});
+      derived_feature = features.getArray()[0];
+      extent = derived_feature.getGeometry().getExtent();
+      minx = derived_feature.getGeometry().getExtent()[0];
+      miny = derived_feature.getGeometry().getExtent()[1];
+      maxx = derived_feature.getGeometry().getExtent()[2];
+      maxy = derived_feature.getGeometry().getExtent()[3];
+      centerx = (minx + maxx) / 2;
+      centery = (miny + maxy) / 2;
 
+      map.setView(new ol.View({
+        center: [centerx, centery],
+        zoom: 8
+      }));
+      map.getView().fit(extent, map.getSize());
+    }
 
-plotWKT();
-selectGeom('Point');
+    function clearMap() {
+      map.removeLayer(vector);
+      features.clear();
 
-}
+      vector = new ol.layer.Vector({
+        source: new ol.source.Vector({ features: features }),
+        style: styles
+      });
 
+      selectGeom(current_shape);
+      map.addLayer(vector);
 
-
-
-//***********plot wkt****************
-
-function plotWKT(){
-map.removeLayer(vector);
-features.clear();
- wkt_string = document.getElementById("wkt_text").value;
-  var new_feature = format.readFeature(wkt_string);
-  new_feature.getGeometry().transform('EPSG:4326', 'EPSG:3857');
-  features.push(new_feature);
-
-vector = new ol.layer.Vector({
-  source: new ol.source.Vector({features: features}),
-  style: styles
-});
-
-selectGeom(current_shape);
-map.addLayer(vector);
-
-derived_feature = features.getArray()[0];
- extent = derived_feature.getGeometry().getExtent();
- minx = derived_feature.getGeometry().getExtent()[0];
- miny = derived_feature.getGeometry().getExtent()[1];
- maxx = derived_feature.getGeometry().getExtent()[2];
- maxy = derived_feature.getGeometry().getExtent()[3];
- centerx = (minx + maxx)/2;
- centery = (miny + maxy)/2;
- 
-map.setView( new ol.View({
-    center: [centerx,centery],
-	zoom:8
-  }));
-  map.getView().fit(extent, map.getSize()); 
-}
-
-
-function clearMap() {
-map.removeLayer(vector);
-features.clear();
-
-vector = new ol.layer.Vector({
-  source: new ol.source.Vector({features: features}),
-  style: styles
-});
-
-selectGeom(current_shape);
-map.addLayer(vector);
-/*map.setView( new ol.View({
-    center: [0,0],
-	zoom:1.75
-  }));
-*/
-  document.getElementById("wkt_text").value = "";
-}
-
-
-
-</script>
+      document.getElementById("wktStringTextArea").value = "";
+    }
+  </script>
 </head>
-<body onload="init();">
-<div class="container-fluid">
-<div class="row-fluid">
-  <div style="height: 450px;width:800px"class="span12">
-    <div  id="map" class="map"></div>
 
-        <button onclick="selectGeom('Point')" value="Point">Point</button>
-        <button onclick="selectGeom('LineString')" value="LineString">LineString</button>
-        <button onclick="selectGeom('Polygon')" value="Polygon">Polygon</button>
+<body onload="init()">
+  <nav class="navbar navbar-expand-sm bg-dark navbar-dark" style="height: 40px">
+    <a class="navbar-brand" href="#">WKT Shapes on OpenStreetMap</a>
+    <ul class="navbar-nav">
+      <li class="nav-item">
+        <a class="nav-link" href="https://github.com/clydedacruz/osm-wkt">Code</a>
+      </li>
+    </ul>
+  </nav>
+  <div class="container-fluid" style="padding: 0px; border:0px">
+    <div class="span12">
+      <div id="overlay" class="row align-items-center justify-content-center" style="background-color: transparent; z-index:1; position: absolute; top:280px; right:2%">
+        <div class="btn-group-vertical ">
+          <button type="button" class="btn btn-primary" onclick="selectGeom('Point')">Point</button>
+          <button type="button" class="btn btn-primary" onclick="selectGeom('LineString')">Line String</button>
+          <button type="button" class="btn btn-primary" onclick="selectGeom('Polygon')">Polygon</button>
+        </div>
+      </div>
+      <div id="map" class="map" style="height: 400px; z-index: 0"></div>
+    </div>
+    <div class="span12" style="padding: 10px; border:0px">
+      <textarea id="wktStringTextArea" class="form-control" rows="4" onclick="restoreDefaultColors()">
+        MULTIPOLYGON(((-108.72070312499997 34.99400375757577,-100.01953124999997 46.58906908309183,-90.79101562499996 34.92197103616377,-108.72070312499997
+        34.99400375757577),(-100.10742187499997 41.47566020027821,-102.91992187499996 37.61423141542416,-96.85546874999996
+        37.54457732085582,-100.10742187499997 41.47566020027821)),((-85.16601562499999 34.84987503195417,-80.771484375 28.497660832963476,-76.904296875
+        34.92197103616377,-85.16601562499999 34.84987503195417)))
+      </textarea>
+      <div class="btn-group btn-group-md" style="padding: 10px; position: absolute; right:0%">
+        <button type="button" class="btn btn-primary" onclick="clearMap()">Clear</button>
+        <button type="button" class="btn btn-primary" onclick="plotWKT()">Plot Shape</button>
+      </div>
+    </div>
   </div>
-  <table >
-<tr>
-<td>
-  <textarea id="wkt_text" rows="5" cols="111">
-MULTIPOLYGON(((-108.72070312499997 34.99400375757577,-100.01953124999997 46.58906908309183,-90.79101562499996 34.92197103616377,-108.72070312499997 34.99400375757577),(-100.10742187499997 41.47566020027821,-102.91992187499996 37.61423141542416,-96.85546874999996 37.54457732085582,-100.10742187499997 41.47566020027821)),((-85.16601562499999 34.84987503195417,-80.771484375 28.497660832963476,-76.904296875 34.92197103616377,-85.16601562499999 34.84987503195417)))
-  </textarea>
-</td>
-</tr>
-<tr>
-<td align ="right" >
-<button type="button" onclick="clearMap();">Clear</button>
-<button type="button" onclick="plotWKT();">Plot WKT!</button>
-</td>
-</tr>
-</table>
-</div>
-</div>
-</div>
+
 </body>
+
 </html>
