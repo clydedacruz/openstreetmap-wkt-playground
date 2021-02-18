@@ -170,6 +170,20 @@
   </script>
   <!-- Place this tag in your head or just before your close body tag. -->
   <script async defer src="https://buttons.github.io/buttons.js"></script>
+  <style>
+	@media only screen and (max-width: 1366px) {
+	  .map { height: 400px !important}
+	}
+	@media only screen and (max-width: 1680px) {
+	  .map { height: 600px !important}
+	}
+	@media only screen and (max-width: 1920px) {
+	  .map { height: 700px !important}
+	}
+	@media only screen and (max-width: 2560px) {
+	  .map { height: 1000px !important}
+	}
+  </style>
 </head>
 
 <body onload="init()">
@@ -196,7 +210,7 @@
           <button type="button" class="btn btn-primary" onclick="selectGeom('Polygon')">Polygon</button>
         </div>
       </div>
-      <div id="map" class="map" style="height: 600px; z-index: 0"></div>
+      <div id="map" class="map" style="z-index: 0"></div>
     </div>
     <div class="span12" style="padding: 10px; border:0px">
       <textarea id="wktStringTextArea" class="form-control" rows="4" onclick="restoreDefaultColors()">
