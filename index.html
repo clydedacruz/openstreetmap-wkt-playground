@@ -98,6 +98,9 @@
           zoom: 4
         })
       });
+      if (window.location && window.location.hash) {
+        loadWKTfromURIFragment(window.location.hash);
+      }
       plotWKT();
       selectGeom('Point');
     }
@@ -166,6 +169,12 @@
       map.addLayer(vector);
       document.getElementById("wktStringTextArea").value = "";
       restoreDefaultColors();
+    }
+
+    function loadWKTfromURIFragment(fragment) {
+      // remove first character from fragment as it contains '#'
+      var wkt = window.location.hash.slice(1);
+      document.getElementById("wktStringTextArea").value = decodeURI(wkt);
     }
   </script>
   <!-- Place this tag in your head or just before your close body tag. -->
